@@ -1,3 +1,7 @@
+let converter = require("json-2-csv");
+
+const fs = require("fs");
+
 const BASE_URL_KABUPATEN =
   "https://sig.bps.go.id/rest-drop-down/getwilayah?level=kabupaten&parent=13";
 
@@ -56,11 +60,12 @@ const getWilayah = async (level) => {
   zones = [...zones, ...kecamatans.map((p) => ({ ...p, level: "kecamatan" }))];
   console.log("ZONE", zones.length);
 
-  const INCREMENT = 400;
+  const csv = converter.json2csv(zones);
+  fs.writeFileSync("./uptokecamatan.csv", csv, "utf8");
 
-  const desaPromises = [];
+  const INCREMENT = 100;
 
-  for (let i = 0; i < kecamatans.length; i += INCREMENT) {
+  for (let i = 7200; i < kecamatans.length; i += INCREMENT) {
     const resDesas = await Promise.all(
       kecamatans.slice(i, i + INCREMENT).map(async (k) => {
         const res = await fetch(`${BASE_URL}?level=desa&parent=${k.kode_bps}`);
@@ -70,10 +75,9 @@ const getWilayah = async (level) => {
 
     const desas = resDesas.flat();
 
-    console.log(`DESA ${i}`, desas.length);
-
-    zones = [...zones, ...desas.map((p) => ({ ...p, level: "desa" }))];
-    console.log("ZONE", zones.length);
+    const zones = [...desas.map((p) => ({ ...p, level: "desa" }))];
+    const csv = converter.json2csv(zones);
+    fs.writeFileSync(`./desa${i}.csv`, csv, "utf8");
   }
 
   console.log("ZONE FINAL", zones.length);
