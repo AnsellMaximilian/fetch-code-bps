@@ -8,6 +8,8 @@ const path = require("node:path");
 
 const {
   collectAllWilayah,
+  downloadPostcodeSnapshot,
+  enrichWithPostcodes,
   mapWithConcurrency,
   parseArgs,
   rowsToCsv,
@@ -161,7 +163,98 @@ test("parses command-line controls", () => {
       cacheDir: ".bps-cache",
       fresh: true,
       allowEmpty: true,
+      withPostcodes: false,
+      refreshPostcodes: false,
+      postcodeCache: null,
+      postcodeReport: null,
     },
+  );
+
+  const postcodeOptions = parseArgs([
+    "--refresh-postcodes",
+    "--postcode-cache",
+    "data/postcodes.json",
+    "--postcode-report",
+    "data/report.json",
+  ]);
+  assert.equal(postcodeOptions.withPostcodes, true);
+  assert.equal(postcodeOptions.refreshPostcodes, true);
+  assert.equal(postcodeOptions.postcodeCache, "data/postcodes.json");
+  assert.equal(postcodeOptions.postcodeReport, "data/report.json");
+});
+
+test("downloads every postcode page with bounded concurrency", async () => {
+  let activeRequests = 0;
+  let maximumActiveRequests = 0;
+
+  const snapshot = await downloadPostcodeSnapshot({
+    concurrency: 2,
+    retries: 0,
+    timeoutMs: 1_000,
+    fetchImpl: async (url) => {
+      activeRequests += 1;
+      maximumActiveRequests = Math.max(maximumActiveRequests, activeRequests);
+      await new Promise((resolve) => setImmediate(resolve));
+      const page = Number(url.searchParams.get("page"));
+      activeRequests -= 1;
+      return jsonResponse({
+        success: true,
+        data: {
+          postalCodes: [
+            {
+              code: `1000${page}`,
+              village: { code: `11.01.01.200${page}` },
+            },
+          ],
+          pagination: { page, totalPages: 3, total: 3 },
+        },
+      });
+    },
+  });
+
+  assert.deepEqual(snapshot.records, [
+    { kode_dagri: "1101012001", kode_pos: "10001" },
+    { kode_dagri: "1101012002", kode_pos: "10002" },
+    { kode_dagri: "1101012003", kode_pos: "10003" },
+  ]);
+  assert.ok(maximumActiveRequests <= 2);
+});
+
+test("adds kode_pos by exact kode_dagri and reports unmatched or multiple codes", () => {
+  const result = enrichWithPostcodes(
+    [
+      { kode_bps: "11", kode_dagri: "11", level: "provinsi" },
+      {
+        kode_bps: "1101010001",
+        kode_dagri: "11.01.01.2001",
+        nama_dagri: "ONE",
+        level: "desa",
+      },
+      {
+        kode_bps: "1101010002",
+        kode_dagri: "11.01.01.2002",
+        nama_dagri: "TWO",
+        level: "desa",
+      },
+    ],
+    [
+      { kode_dagri: "11.01.01.2001", kode_pos: "11111" },
+      { kode_dagri: "1101012001", kode_pos: "11112" },
+    ],
+  );
+
+  assert.equal(result.rows[0].kode_pos, "");
+  assert.equal(result.rows[1].kode_pos, "11111|11112");
+  assert.equal(result.rows[2].kode_pos, "");
+  assert.deepEqual(
+    {
+      total: result.report.totalVillageRows,
+      matched: result.report.matchedVillageRows,
+      unmatched: result.report.unmatchedVillageRows,
+      multiple: result.report.multiplePostcodeVillageRows,
+      coverage: result.report.coveragePercent,
+    },
+    { total: 2, matched: 1, unmatched: 1, multiple: 1, coverage: 50 },
   );
 });
 

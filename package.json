@@ -4,6 +4,7 @@
   "main": "index.js",
   "scripts": {
     "fetch": "node index.js",
+    "fetch:postcodes": "node index.js --with-postcodes",
     "test": "node --test"
   },
   "keywords": [],

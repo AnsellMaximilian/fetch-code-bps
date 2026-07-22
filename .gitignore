@@ -1,4 +1,5 @@
 /node_modules
 .bps-cache/
 wilayah-bps.csv
+*.postcode-report.json
 *.tmp

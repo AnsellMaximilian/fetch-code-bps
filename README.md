@@ -50,6 +50,43 @@ npm run fetch -- --output data/wilayah.csv
 npm run fetch -- --help
 ```
 
+## Add postal codes
+
+Postal-code enrichment is optional because it comes from a separate service,
+not BPS. Run:
+
+```sh
+npm run fetch:postcodes
+```
+
+This reuses the completed BPS cache, downloads the paginated postcode directory
+from [CariKodePos.ID](https://carikodepos.id/api/docs), and joins villages using
+the exact Ministry of Home Affairs code (`kode_dagri`). The resulting
+`wilayah-bps.csv` has an additional `kode_pos` column. A value containing `|`
+means the postcode source supplied multiple codes for the same village.
+
+The compact postcode snapshot is cached at `.bps-cache/postcodes.json`. Refresh
+it independently from the BPS cache with:
+
+```sh
+npm run fetch -- --with-postcodes --refresh-postcodes
+```
+
+A detailed `wilayah-bps.postcode-report.json` is also produced with match
+coverage, unmatched villages, and villages with multiple postcodes. Paths can
+be customized:
+
+```sh
+npm run fetch -- --with-postcodes \
+  --postcode-cache data/postcodes.json \
+  --postcode-report data/postcode-report.json \
+  --output data/wilayah-with-postcodes.csv
+```
+
+The postcode service currently requires no API key, but it is still an external
+third-party source. Keep the generated report with the CSV so its provenance and
+snapshot time are explicit.
+
 Run the offline test suite with:
 
 ```sh
