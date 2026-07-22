@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "fetch": "node index.js",
+    "test": "node --test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "json-2-csv": "^5.5.6"
+  "description": "Fetch the complete BPS administrative region hierarchy",
+  "engines": {
+    "node": ">=18"
   }
 }
